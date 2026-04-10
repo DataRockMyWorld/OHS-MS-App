@@ -24,6 +24,8 @@ import Textarea from '@/components/ui/Textarea';
 import { formatDate, formatDateTime, formatFileSize } from '@/lib/utils';
 import Input from '@/components/ui/Input';
 import { useOrgUsers } from '@/features/accounts/hooks/useOrgUsers';
+import { useAuth } from '@/contexts/AuthContext';
+import { can } from '@/lib/permissions';
 import { useIncident } from '../hooks/useIncidents';
 import { useTransitionStatus, useSubmitIncident, useAssignIncident } from '../hooks/useIncidentMutations';
 import IncidentStatusBadge from '../components/IncidentStatusBadge';
@@ -423,6 +425,8 @@ function AssignIncidentModal({
 
 export default function IncidentDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const canManage = can.manageIncidents(user?.role ?? '');
   const [transitionModal, setTransitionModal] = useState<{
     open: boolean;
     targetStatus: IncidentStatus | null;
@@ -511,17 +515,6 @@ export default function IncidentDetailPage() {
             </div>
 
             <div className="flex items-center gap-2 shrink-0 flex-wrap">
-              {!incident.investigation_id && incident.status !== 'draft' && (
-                <Link to={`/investigations/new?incident=${incident.id}`}>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    iconLeft={<MagnifyingGlassIcon className="w-3.5 h-3.5" />}
-                  >
-                    Open Investigation
-                  </Button>
-                </Link>
-              )}
               {incident.investigation_id && (
                 <Link to={`/investigations/${incident.investigation_id}`}>
                   <Button
@@ -533,28 +526,43 @@ export default function IncidentDetailPage() {
                   </Button>
                 </Link>
               )}
-              <Link to={`/incidents/${id}/edit`}>
-                <Button variant="secondary" size="sm" iconLeft={<PencilSquareIcon className="w-3.5 h-3.5" />}>
-                  Edit
-                </Button>
-              </Link>
-              {incident.status === 'draft' && (
-                <Button size="sm" loading={submitIncident.isPending} onClick={handleSubmit}>
-                  Submit for Review
-                </Button>
-              )}
-              {incident.allowed_transitions.length > 0 && incident.status !== 'draft' && (
-                incident.allowed_transitions.map((newStatus) => (
-                  <Button
-                    key={newStatus}
-                    variant={newStatus === 'closed' || newStatus === 'reopened' ? 'secondary' : 'primary'}
-                    size="sm"
-                    iconLeft={<ArrowsRightLeftIcon className="w-3.5 h-3.5" />}
-                    onClick={() => openTransitionModal(newStatus)}
-                  >
-                    {INCIDENT_STATUS_LABELS[newStatus]}
-                  </Button>
-                ))
+              {canManage && (
+                <>
+                  {!incident.investigation_id && incident.status !== 'draft' && (
+                    <Link to={`/investigations/new?incident=${incident.id}`}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        iconLeft={<MagnifyingGlassIcon className="w-3.5 h-3.5" />}
+                      >
+                        Open Investigation
+                      </Button>
+                    </Link>
+                  )}
+                  <Link to={`/incidents/${id}/edit`}>
+                    <Button variant="secondary" size="sm" iconLeft={<PencilSquareIcon className="w-3.5 h-3.5" />}>
+                      Edit
+                    </Button>
+                  </Link>
+                  {incident.status === 'draft' && (
+                    <Button size="sm" loading={submitIncident.isPending} onClick={handleSubmit}>
+                      Submit for Review
+                    </Button>
+                  )}
+                  {incident.allowed_transitions.length > 0 && incident.status !== 'draft' && (
+                    incident.allowed_transitions.map((newStatus) => (
+                      <Button
+                        key={newStatus}
+                        variant={newStatus === 'closed' || newStatus === 'reopened' ? 'secondary' : 'primary'}
+                        size="sm"
+                        iconLeft={<ArrowsRightLeftIcon className="w-3.5 h-3.5" />}
+                        onClick={() => openTransitionModal(newStatus)}
+                      >
+                        {INCIDENT_STATUS_LABELS[newStatus]}
+                      </Button>
+                    ))
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -761,26 +769,30 @@ export default function IncidentDetailPage() {
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    iconLeft={<UserPlusIcon className="w-3 h-3" />}
-                    onClick={() => setAssignModalOpen(true)}
-                  >
-                    Reassign
-                  </Button>
+                  {canManage && (
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      iconLeft={<UserPlusIcon className="w-3 h-3" />}
+                      onClick={() => setAssignModalOpen(true)}
+                    >
+                      Reassign
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-slate-400">Not yet assigned</p>
-                  <Button
-                    variant="outline"
-                    size="xs"
-                    iconLeft={<UserPlusIcon className="w-3 h-3" />}
-                    onClick={() => setAssignModalOpen(true)}
-                  >
-                    Assign Incident
-                  </Button>
+                  {canManage && (
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      iconLeft={<UserPlusIcon className="w-3 h-3" />}
+                      onClick={() => setAssignModalOpen(true)}
+                    >
+                      Assign Incident
+                    </Button>
+                  )}
                 </div>
               )}
             </Card>

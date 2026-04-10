@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,6 +10,8 @@ import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
 import { Card } from '@/components/ui/Card';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrgUsers } from '@/features/accounts/hooks/useOrgUsers';
+import { useIncident } from '@/features/incidents/hooks/useIncidents';
 import { useCreateInvestigation } from '../hooks/useInvestigationMutations';
 import type { RCAMethod } from '../types/investigation.types';
 
@@ -17,6 +20,7 @@ import type { RCAMethod } from '../types/investigation.types';
 const schema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters').max(255),
   rca_method: z.string().optional() as z.ZodType<RCAMethod | ''>,
+  lead_investigator: z.string().min(1, 'Lead investigator is required'),
   scope: z.string().optional(),
   target_completion_date: z.string().optional(),
 });
@@ -62,18 +66,29 @@ export default function OpenInvestigationPage() {
   const incidentId = searchParams.get('incident');
   const { user } = useAuth();
 
+  const { data: incident } = useIncident(incidentId ?? '');
+  const { data: orgUsers = [] } = useOrgUsers();
   const createInvestigation = useCreateInvestigation();
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       rca_method: '',
+      lead_investigator: user!.id,
     },
   });
+
+  // Pre-fill lead_investigator from the incident's assigned_to once loaded
+  useEffect(() => {
+    if (incident?.assigned_to) {
+      setValue('lead_investigator', incident.assigned_to.id);
+    }
+  }, [incident, setValue]);
 
   async function onSubmit(values: FormValues) {
     const payload = {
@@ -82,7 +97,7 @@ export default function OpenInvestigationPage() {
       rca_method: (values.rca_method as RCAMethod) || undefined,
       scope: values.scope || undefined,
       target_completion_date: values.target_completion_date || undefined,
-      lead_investigator: user!.id,
+      lead_investigator: values.lead_investigator,
     };
 
     const created = await createInvestigation.mutateAsync(payload);
@@ -142,6 +157,26 @@ export default function OpenInvestigationPage() {
                 error={errors.title?.message}
                 {...register('title')}
               />
+
+              <Select
+                id="lead_investigator"
+                label="Lead Investigator"
+                required
+                error={errors.lead_investigator?.message}
+                hint={
+                  incident?.assigned_to
+                    ? `Pre-filled from incident assignment (${incident.assigned_to.full_name}). Change if needed.`
+                    : 'The person responsible for conducting this investigation.'
+                }
+                {...register('lead_investigator')}
+              >
+                <option value="">Select a person…</option>
+                {orgUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.full_name}{u.job_title ? ` — ${u.job_title}` : ''}
+                  </option>
+                ))}
+              </Select>
 
               <Select
                 id="rca_method"

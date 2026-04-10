@@ -30,6 +30,12 @@ class Objective(models.Model):
         LAGGING = 'lagging', 'Lagging'
         LEADING = 'leading', 'Leading'
 
+    class EffectivenessDecision(models.TextChoices):
+        PENDING = 'pending', 'Pending Review'
+        EFFECTIVE = 'effective', 'Effective'
+        PARTIALLY_EFFECTIVE = 'partially_effective', 'Partially Effective'
+        NOT_EFFECTIVE = 'not_effective', 'Not Effective'
+
     class LinkedMetric(models.TextChoices):
         MANUAL = 'manual', 'Manual Entry'
         NEAR_MISS_COUNT = 'near_miss_count', 'Near Miss Count'
@@ -58,6 +64,63 @@ class Objective(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ON_TRACK)
     start_date = models.DateField()
     target_date = models.DateField()
+    # ── Planning fields (Clause 6.2) ─────────────────────────────────────────
+    present_status = models.TextField(
+        blank=True,
+        help_text="Description of the current state that this objective aims to improve.",
+    )
+    kpi_description = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Explicit KPI statement, e.g. 'LTI frequency rate per 200,000 hrs worked'.",
+    )
+    planned_actions = models.TextField(
+        blank=True,
+        help_text="Specific actions planned to achieve this objective.",
+    )
+    responsible_persons = models.TextField(
+        blank=True,
+        help_text="Individuals, teams, or committees responsible beyond the primary owner.",
+    )
+    expected_result = models.TextField(
+        blank=True,
+        help_text="Expected outcome from the planned actions and mitigations.",
+    )
+
+    # ── Effectiveness review fields ───────────────────────────────────────────
+    effectiveness_decision = models.CharField(
+        max_length=30,
+        choices=EffectivenessDecision.choices,
+        default=EffectivenessDecision.PENDING,
+    )
+    effectiveness_notes = models.TextField(
+        blank=True,
+        help_text="Narrative supporting the effectiveness decision.",
+    )
+    evidence_of_review = models.TextField(
+        blank=True,
+        help_text="References to meeting minutes, reports, or documents that evidence the review.",
+    )
+    final_result = models.TextField(
+        blank=True,
+        help_text="Documented final outcome once the objective period is complete.",
+    )
+    review_date = models.DateField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_objectives',
+    )
+
+    risk_or_opportunity = models.ForeignKey(
+        'context.RiskOrOpportunity',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='objectives',
+    )
     owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='owned_objectives')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_objectives')
     created_at = models.DateTimeField(auto_now_add=True)

@@ -12,6 +12,8 @@ import StatCard from '@/components/ui/StatCard';
 import EmptyState from '@/components/ui/EmptyState';
 import { SkeletonTableRow } from '@/components/ui/Skeleton';
 import { formatDate } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { can } from '@/lib/permissions';
 import { useInvestigations, useInvestigationStats } from '../hooks/useInvestigations';
 import InvestigationStatusBadge from '../components/InvestigationStatusBadge';
 import type {
@@ -65,6 +67,7 @@ function FilterSelect({
 
 export default function InvestigationListPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [rcaFilter, setRcaFilter] = useState('');
@@ -106,11 +109,13 @@ export default function InvestigationListPage() {
               Root cause analysis and corrective findings for safety incidents.
             </p>
           </div>
-          <Link to="/investigations/new">
-            <Button size="md" iconLeft={<PlusIcon className="w-4 h-4" />}>
-              New Investigation
-            </Button>
-          </Link>
+          {can.manageInvestigations(user?.role ?? '') && (
+            <Link to="/investigations/new">
+              <Button size="md" iconLeft={<PlusIcon className="w-4 h-4" />}>
+                New Investigation
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* ── Stats row ─────────────────────────────────────────────────────── */}
@@ -208,7 +213,7 @@ export default function InvestigationListPage() {
                   : 'Open an investigation from an incident to get started.'
               }
               action={
-                !hasFilters ? (
+                !hasFilters && can.manageInvestigations(user?.role ?? '') ? (
                   <Link to="/investigations/new">
                     <Button size="sm" iconLeft={<PlusIcon className="w-3.5 h-3.5" />}>
                       New Investigation

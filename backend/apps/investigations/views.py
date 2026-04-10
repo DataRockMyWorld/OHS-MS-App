@@ -93,6 +93,15 @@ class InvestigationViewSet(viewsets.ModelViewSet):
         )
         return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
 
+    def partial_update(self, request, *args, **kwargs):
+        response = super().partial_update(request, *args, **kwargs)
+        instance = self.get_object()
+        InvestigationService.auto_advance(instance)
+        instance.refresh_from_db()
+        return Response(
+            InvestigationDetailSerializer(instance, context=self.get_serializer_context()).data
+        )
+
     def perform_destroy(self, instance):
         InvestigationService.soft_delete(
             investigation=instance,
@@ -115,10 +124,9 @@ class InvestigationViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['post'],
         url_path='transition',
-        permission_classes=[IsAuthenticated, IsHSEManagerOrAbove],
     )
     def transition(self, request, pk=None):
-        """Transition investigation status. Requires HSE Manager or above."""
+        """Transition investigation status. Role restrictions are enforced by the service layer."""
         investigation = self.get_object()
         serializer = StatusTransitionSerializer(
             data=request.data,
@@ -168,6 +176,7 @@ class InvestigationViewSet(viewsets.ModelViewSet):
             investigation=investigation,
             data=serializer.validated_data,
         )
+        InvestigationService.auto_advance(investigation)
         return Response(
             RootCauseSerializer(root_cause, context=self.get_serializer_context()).data,
             status=status.HTTP_201_CREATED,

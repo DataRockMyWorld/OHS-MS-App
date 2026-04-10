@@ -185,12 +185,76 @@ class DashboardView(APIView):
             for ca in overdue_cas
         ]
 
+        # ── Investigation funnel ───────────────────────────────────────────────
+        inv_funnel_agg = investigations_qs.aggregate(
+            initiated=Count('id', filter=Q(status=InvestigationStatus.INITIATED)),
+            in_progress=Count('id', filter=Q(status=InvestigationStatus.IN_PROGRESS)),
+            findings_recorded=Count('id', filter=Q(status=InvestigationStatus.FINDINGS_RECORDED)),
+            recommendations_issued=Count('id', filter=Q(status=InvestigationStatus.RECOMMENDATIONS_ISSUED)),
+            closed=Count('id', filter=Q(status=InvestigationStatus.CLOSED)),
+        )
+        investigation_funnel = [
+            {'status': 'initiated',               'label': 'Initiated',               'count': inv_funnel_agg['initiated']},
+            {'status': 'in_progress',             'label': 'In Progress',             'count': inv_funnel_agg['in_progress']},
+            {'status': 'findings_recorded',       'label': 'Findings Recorded',       'count': inv_funnel_agg['findings_recorded']},
+            {'status': 'recommendations_issued',  'label': 'Recommendations Issued',  'count': inv_funnel_agg['recommendations_issued']},
+            {'status': 'closed',                  'label': 'Closed',                  'count': inv_funnel_agg['closed']},
+        ]
+
+        # ── CA pipeline breakdown ──────────────────────────────────────────────
+        ca_agg = ca_qs.aggregate(
+            open=Count('id', filter=Q(status=CAStatus.OPEN)),
+            in_progress=Count('id', filter=Q(status=CAStatus.IN_PROGRESS)),
+            implemented=Count('id', filter=Q(status=CAStatus.IMPLEMENTED)),
+            closed=Count('id', filter=Q(status=CAStatus.CLOSED)),
+        )
+        ca_pipeline = [
+            {'status': 'open',        'label': 'Open',        'count': ca_agg['open']},
+            {'status': 'in_progress', 'label': 'In Progress', 'count': ca_agg['in_progress']},
+            {'status': 'implemented', 'label': 'Implemented', 'count': ca_agg['implemented']},
+            {'status': 'closed',      'label': 'Closed',      'count': ca_agg['closed']},
+        ]
+
+        # ── Open investigations list ───────────────────────────────────────────
+        open_inv_qs = (
+            investigations_qs
+            .filter(status__in=[
+                InvestigationStatus.INITIATED,
+                InvestigationStatus.IN_PROGRESS,
+                InvestigationStatus.FINDINGS_RECORDED,
+                InvestigationStatus.RECOMMENDATIONS_ISSUED,
+            ])
+            .select_related('lead_investigator')
+            .order_by('created_at')[:5]
+        )
+        open_investigations_list = [
+            {
+                'id': str(inv.id),
+                'reference_number': inv.reference_number,
+                'title': inv.title,
+                'status': inv.status,
+                'status_display': inv.get_status_display(),
+                'lead_investigator': (
+                    inv.lead_investigator.get_full_name() or inv.lead_investigator.email
+                    if inv.lead_investigator else None
+                ),
+                'days_open': (today - inv.created_at.date()).days,
+                'is_overdue': bool(
+                    inv.target_completion_date and inv.target_completion_date < today
+                ),
+            }
+            for inv in open_inv_qs
+        ]
+
         return Response({
             'kpis': kpis,
             'incident_trend': trend,
             'incidents_by_type': incidents_by_type,
             'recent_open_incidents': recent_open_incidents,
             'overdue_actions': overdue_actions,
+            'investigation_funnel': investigation_funnel,
+            'ca_pipeline': ca_pipeline,
+            'open_investigations_list': open_investigations_list,
         })
 
     def _empty_payload(self):
@@ -213,4 +277,18 @@ class DashboardView(APIView):
             'incidents_by_type': [],
             'recent_open_incidents': [],
             'overdue_actions': [],
+            'investigation_funnel': [
+                {'status': 'initiated',              'label': 'Initiated',              'count': 0},
+                {'status': 'in_progress',            'label': 'In Progress',            'count': 0},
+                {'status': 'findings_recorded',      'label': 'Findings Recorded',      'count': 0},
+                {'status': 'recommendations_issued', 'label': 'Recommendations Issued', 'count': 0},
+                {'status': 'closed',                 'label': 'Closed',                 'count': 0},
+            ],
+            'ca_pipeline': [
+                {'status': 'open',        'label': 'Open',        'count': 0},
+                {'status': 'in_progress', 'label': 'In Progress', 'count': 0},
+                {'status': 'implemented', 'label': 'Implemented', 'count': 0},
+                {'status': 'closed',      'label': 'Closed',      'count': 0},
+            ],
+            'open_investigations_list': [],
         }

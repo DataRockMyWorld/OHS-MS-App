@@ -10,8 +10,8 @@ export interface DashboardKPIs {
 }
 
 export interface TrendPoint {
-  period: string;  // "2025-10"
-  label: string;   // "Oct"
+  period: string;
+  label: string;
   total: number;
   near_miss: number;
   injury: number;
@@ -46,10 +46,36 @@ export interface OverdueAction {
   assigned_to: string | null;
 }
 
+export interface FunnelStage {
+  status: string;
+  label: string;
+  count: number;
+}
+
+export interface PipelineStage {
+  status: string;
+  label: string;
+  count: number;
+}
+
+export interface OpenInvestigation {
+  id: string;
+  reference_number: string;
+  title: string;
+  status: string;
+  status_display: string;
+  lead_investigator: string | null;
+  days_open: number;
+  is_overdue: boolean;
+}
+
 export interface DashboardData {
   kpis: DashboardKPIs;
   incident_trend: TrendPoint[];
   incidents_by_type: IncidentByType[];
   recent_open_incidents: RecentOpenIncident[];
   overdue_actions: OverdueAction[];
+  investigation_funnel: FunnelStage[];
+  ca_pipeline: PipelineStage[];
+  open_investigations_list: OpenInvestigation[];
 }

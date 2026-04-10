@@ -1,4 +1,5 @@
 export type ObjectiveScope = 'organizational' | 'individual';
+export type EffectivenessDecision = 'pending' | 'effective' | 'partially_effective' | 'not_effective';
 export type ObjectiveDirection = 'increase' | 'decrease' | 'maintain';
 export type ObjectiveFrequency = 'monthly' | 'quarterly' | 'bi_annually';
 export type ObjectiveStatus = 'on_track' | 'at_risk' | 'behind' | 'achieved' | 'closed';
@@ -33,6 +34,7 @@ export interface ObjectiveListItem {
   direction: ObjectiveDirection;
   measurement_frequency: ObjectiveFrequency;
   linked_metric: LinkedMetric;
+  kpi_description: string;
   baseline_value: string;
   target_value: string;
   current_value: string | null;
@@ -43,13 +45,30 @@ export interface ObjectiveListItem {
   owner_name: string | null;
   weight: number;
   achievement_pct: number | null;
+  effectiveness_decision: EffectivenessDecision;
   created_at: string;
 }
 
 export interface ObjectiveDetail extends ObjectiveListItem {
   description: string;
+  // Planning
+  present_status: string;
+  planned_actions: string;
+  responsible_persons: string;
+  expected_result: string;
+  // Review
+  effectiveness_notes: string;
+  evidence_of_review: string;
+  final_result: string;
+  review_date: string | null;
+  reviewed_by_id: string | null;
+  reviewed_by_name: string | null;
+  // Meta
   created_by_name: string | null;
   measurements: KPIMeasurement[];
+  risk_or_opportunity_id: string | null;
+  risk_or_opportunity_title: string | null;
+  risk_or_opportunity_type: 'risk' | 'opportunity' | null;
 }
 
 export interface ObjectiveStats {
@@ -91,12 +110,19 @@ export interface CreateObjectivePayload {
   direction: ObjectiveDirection;
   measurement_frequency: ObjectiveFrequency;
   linked_metric: LinkedMetric;
+  kpi_description?: string;
   baseline_value: number;
   target_value: number;
   weight?: number;
   start_date: string;
   target_date: string;
   owner?: string | null;
+  risk_or_opportunity?: string | null;
+  // Planning
+  present_status?: string;
+  planned_actions?: string;
+  responsible_persons?: string;
+  expected_result?: string;
 }
 
 export interface CreateMeasurementPayload {

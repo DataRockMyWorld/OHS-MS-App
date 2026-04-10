@@ -85,6 +85,7 @@ class CorrectiveActionService:
         new_status: str,
         changed_by: User,
         comment: str = '',
+        bypass_role_check: bool = False,
     ) -> CorrectiveAction:
         """Validate and execute a status transition."""
         current_status = ca.status
@@ -96,12 +97,13 @@ class CorrectiveActionService:
                 f"Allowed: {allowed_transitions}"
             )
 
-        permitted_roles = TRANSITION_PERMITTED_ROLES.get(new_status, [])
-        if permitted_roles and changed_by.role not in permitted_roles:
-            raise TransitionPermissionError(
-                f"Role '{changed_by.role}' is not permitted to transition "
-                f"a corrective action to '{new_status}'."
-            )
+        if not bypass_role_check:
+            permitted_roles = TRANSITION_PERMITTED_ROLES.get(new_status, [])
+            if permitted_roles and changed_by.role not in permitted_roles:
+                raise TransitionPermissionError(
+                    f"Role '{changed_by.role}' is not permitted to transition "
+                    f"a corrective action to '{new_status}'."
+                )
 
         # Closing requires at least one effectiveness review
         if new_status == CAStatus.CLOSED:
@@ -151,6 +153,33 @@ class CorrectiveActionService:
         return ca
 
     @staticmethod
+    def auto_advance(ca: CorrectiveAction) -> None:
+        """
+        Fire one status step forward if the data conditions are met. Idempotent.
+        Called after every PATCH on a corrective action.
+        """
+        current = ca.status
+        target = None
+
+        if current == CAStatus.OPEN:
+            if ca.planned_action and ca.assigned_to_id:
+                target = CAStatus.IN_PROGRESS
+
+        elif current == CAStatus.IN_PROGRESS:
+            if ca.implementation_date and ca.implementation_evidence:
+                target = CAStatus.IMPLEMENTED
+
+        if target:
+            actor = ca.assigned_to or ca.created_by
+            CorrectiveActionService.transition_status(
+                ca=ca,
+                new_status=target,
+                changed_by=actor,
+                comment='Auto-advanced by system.',
+                bypass_role_check=True,
+            )
+
+    @staticmethod
     @transaction.atomic
     def add_effectiveness_review(
         *,
@@ -193,6 +222,11 @@ class CorrectiveActionService:
                 changed_by=reviewer,
                 comment=f'Closed automatically after Fully Effective review on {review.review_date}.',
             )
+
+            # Cascade: close the parent investigation if all its CAs are now closed
+            if ca.source_investigation_id:
+                from apps.investigations.services import InvestigationService
+                InvestigationService.check_cascade_close(ca.source_investigation)
         else:
             # Cycle back to in_progress for further remediation
             ca.status = CAStatus.IN_PROGRESS

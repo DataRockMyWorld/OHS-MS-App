@@ -28,6 +28,21 @@ api_v1_urlpatterns = [
 
     # Objectives & KPIs
     path('', include('apps.objectives.urls')),
+
+    # Context Register (ISO 45001 Clauses 4.1 & 4.2)
+    path('', include('apps.context.urls')),
+
+    # Risk Assessments / HIRA
+    path('', include('apps.risk_assessments.urls')),
+
+    # Audits & Inspections
+    path('', include('apps.audits.urls')),
+
+    # Legal Register
+    path('', include('apps.legal.urls')),
+
+    # Public (anonymous reporting — no auth required)
+    path('', include('apps.incidents.public_urls')),
 ]
 
 urlpatterns = [

@@ -260,3 +260,56 @@ class IncidentStatusHistory(models.Model):
             f"{self.incident.reference_number}: "
             f"{self.from_status or '—'} → {self.to_status}"
         )
+
+
+class AnonymousIncidentReport(models.Model):
+    """
+    Submitted via the public /report/<org_slug>/ page — no auth required.
+    Kept separate from Incident so reported_by is never required on Incident.
+    HSE managers review these and can convert to a proper Incident if warranted.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.CASCADE,
+        related_name='anonymous_reports',
+    )
+
+    # What happened
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    incident_type = models.CharField(max_length=30, choices=IncidentType.choices, default=IncidentType.NEAR_MISS)
+    date_of_incident = models.DateField()
+    location = models.CharField(max_length=255, blank=True, default='')
+    immediate_action_taken = models.TextField(blank=True, default='')
+
+    # Optional contact — reporter may choose to remain anonymous
+    reporter_name = models.CharField(max_length=255, blank=True, default='')
+    reporter_contact = models.CharField(max_length=255, blank=True, default='')
+
+    # Review
+    is_reviewed = models.BooleanField(default=False, db_index=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='reviewed_anonymous_reports',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_notes = models.TextField(blank=True, default='')
+
+    # Link to a converted incident if reviewer promoted it
+    converted_incident = models.OneToOneField(
+        Incident,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name='anonymous_source',
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Anonymous report — {self.organization.name} — {self.title[:40]}"

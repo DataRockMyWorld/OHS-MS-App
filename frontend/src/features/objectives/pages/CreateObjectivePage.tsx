@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,12 +10,12 @@ import Textarea from '@/components/ui/Textarea';
 import { Card } from '@/components/ui/Card';
 import { useCreateObjective } from '../hooks/useObjectives';
 import { useOrgUsers } from '@/features/accounts/hooks/useOrgUsers';
+import { useRisksOpportunities } from '@/features/context/hooks/useRisksOpportunities';
 import type {
   ObjectiveScope,
   ObjectiveCategory,
   ObjectiveDirection,
   ObjectiveFrequency,
-  LinkedMetric,
 } from '../types/objective.types';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -39,6 +39,7 @@ const schema = z
       'ca_closure_rate',
       'open_investigation_count',
     ]),
+    kpi_description: z.string().max(255).optional(),
     measurement_frequency: z.enum(['monthly', 'quarterly', 'bi_annually']),
     baseline_value: z.coerce.number({ invalid_type_error: 'Baseline is required' }),
     target_value: z.coerce.number({ invalid_type_error: 'Target is required' }),
@@ -46,6 +47,12 @@ const schema = z
     target_date: z.string().min(1, 'Target date is required'),
     owner: z.string().optional(),
     weight: z.coerce.number().min(1).optional(),
+    risk_or_opportunity: z.string().optional(),
+    // Planning
+    present_status: z.string().optional(),
+    planned_actions: z.string().optional(),
+    responsible_persons: z.string().optional(),
+    expected_result: z.string().optional(),
   })
   .refine((d) => new Date(d.target_date) > new Date(d.start_date), {
     message: 'Target date must be after start date',
@@ -135,8 +142,11 @@ function RadioGroup<T extends string>({
 
 export default function CreateObjectivePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const prefillRO = searchParams.get('risk_or_opportunity') ?? '';
   const createObjective = useCreateObjective();
   const { data: users = [] } = useOrgUsers();
+  const { data: rosAll = [] } = useRisksOpportunities({ status: 'open' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -154,14 +164,16 @@ export default function CreateObjectivePage() {
       linked_metric: 'manual',
       measurement_frequency: 'monthly',
       weight: 1,
+      risk_or_opportunity: prefillRO,
     },
   });
 
   const scope = watch('scope') as ObjectiveScope;
   const direction = watch('direction') as ObjectiveDirection;
-  const linked_metric = watch('linked_metric') as LinkedMetric;
   const measurement_frequency = watch('measurement_frequency') as ObjectiveFrequency;
   const category = watch('category') as ObjectiveCategory;
+  const selectedRO = watch('risk_or_opportunity');
+  const selectedROData = rosAll.find((ro) => ro.id === selectedRO);
 
   async function onSubmit(data: FormValues) {
     setIsSubmitting(true);
@@ -174,6 +186,7 @@ export default function CreateObjectivePage() {
         unit: data.unit,
         direction: data.direction,
         linked_metric: data.linked_metric,
+        kpi_description: data.kpi_description || '',
         measurement_frequency: data.measurement_frequency,
         baseline_value: data.baseline_value,
         target_value: data.target_value,
@@ -181,6 +194,11 @@ export default function CreateObjectivePage() {
         target_date: data.target_date,
         owner: data.owner || null,
         weight: data.weight ?? 1,
+        risk_or_opportunity: data.risk_or_opportunity || null,
+        present_status: data.present_status || '',
+        planned_actions: data.planned_actions || '',
+        responsible_persons: data.responsible_persons || '',
+        expected_result: data.expected_result || '',
       });
       navigate(`/objectives/${result.id}`);
     } finally {
@@ -318,6 +336,14 @@ export default function CreateObjectivePage() {
                 ]}
                 error={errors.measurement_frequency?.message}
               />
+              <Input
+                id="kpi_description"
+                label="KPI Statement"
+                placeholder="e.g. LTI frequency rate per 200,000 hrs worked"
+                hint="Optional — explicit description of the key performance indicator."
+                error={errors.kpi_description?.message}
+                {...register('kpi_description')}
+              />
             </div>
           </SectionCard>
 
@@ -406,6 +432,105 @@ export default function CreateObjectivePage() {
                   error={errors.weight?.message}
                   {...register('weight')}
                 />
+              )}
+            </div>
+          </SectionCard>
+
+          {/* Step 5: Planning */}
+          <SectionCard
+            step={5}
+            title="Planning"
+            description="Document the current situation, actions, and expected outcomes (ISO 45001 Clause 6.2)."
+          >
+            <div className="space-y-4">
+              <Textarea
+                id="present_status"
+                label="Present Status"
+                placeholder="Describe the current state this objective aims to improve…"
+                rows={3}
+                hint="What is the situation today that makes this objective necessary?"
+                {...register('present_status')}
+              />
+              <Textarea
+                id="planned_actions"
+                label="Actions"
+                placeholder="List the specific actions that will be taken to achieve this objective…"
+                rows={4}
+                hint="Be specific — who will do what, using which resources."
+                {...register('planned_actions')}
+              />
+              <Textarea
+                id="responsible_persons"
+                label="Responsibility"
+                placeholder="e.g. HSSE Manager, Site Supervisors, Safety Committee…"
+                rows={2}
+                hint="Individuals, teams, or committees accountable (beyond the primary owner above)."
+                {...register('responsible_persons')}
+              />
+              <Textarea
+                id="expected_result"
+                label="Expected Result"
+                placeholder="What outcome do you expect from the planned actions and mitigations?"
+                rows={3}
+                hint="Link this to the KPI target — what should the metric look like when this succeeds?"
+                {...register('expected_result')}
+              />
+            </div>
+          </SectionCard>
+
+          {/* Step 6: Source (Optional) */}
+          <SectionCard
+            step={6}
+            title="Source (Optional)"
+            description="Link this objective to a Risk or Opportunity from your Context Register."
+          >
+            <div className="space-y-3">
+              <p className="text-xs text-slate-500">
+                Best practice per ISO 45001 — objectives should address a risk or pursue an opportunity identified in your Context Register.
+              </p>
+              <div>
+                <label htmlFor="risk_or_opportunity" className="block text-xs font-medium text-slate-700 mb-1.5">
+                  Risk or Opportunity
+                </label>
+                <select
+                  id="risk_or_opportunity"
+                  {...register('risk_or_opportunity')}
+                  className="w-full h-9 pl-3 pr-9 text-sm rounded-lg border border-stone-200 bg-white text-slate-700 appearance-none focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-colors"
+                  style={{
+                    backgroundImage:
+                      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2394a3b8'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E\")",
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 10px center',
+                    backgroundSize: '14px',
+                  }}
+                >
+                  <option value="">No source — skip this step</option>
+                  {rosAll.filter((ro) => ro.type === 'risk').length > 0 && (
+                    <optgroup label="Risks">
+                      {rosAll.filter((ro) => ro.type === 'risk').map((ro) => (
+                        <option key={ro.id} value={ro.id}>{ro.title}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {rosAll.filter((ro) => ro.type === 'opportunity').length > 0 && (
+                    <optgroup label="Opportunities">
+                      {rosAll.filter((ro) => ro.type === 'opportunity').map((ro) => (
+                        <option key={ro.id} value={ro.id}>{ro.title}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+              {selectedROData && (
+                <div className="flex items-center gap-3 px-4 py-3 bg-stone-50 rounded-xl border border-stone-100">
+                  {selectedROData.type === 'risk' ? (
+                    <span className="text-[10px] font-semibold bg-red-50 text-red-700 border border-red-100 px-2 py-0.5 rounded-full">Risk</span>
+                  ) : (
+                    <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full">Opportunity</span>
+                  )}
+                  <span className="text-sm text-slate-700">{selectedROData.title}</span>
+                  <span className="ml-auto text-xs text-slate-400 capitalize">{selectedROData.severity_level} severity</span>
+                </div>
               )}
             </div>
           </SectionCard>

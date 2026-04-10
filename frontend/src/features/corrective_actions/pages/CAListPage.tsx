@@ -12,6 +12,8 @@ import StatCard from '@/components/ui/StatCard';
 import EmptyState from '@/components/ui/EmptyState';
 import { SkeletonTableRow } from '@/components/ui/Skeleton';
 import { formatDate } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { can } from '@/lib/permissions';
 import { useCorrectiveActions, useCAStats } from '../hooks/useCorrectiveActions';
 import CAStatusBadge from '../components/CAStatusBadge';
 import CAPriorityBadge from '../components/CAPriorityBadge';
@@ -65,6 +67,7 @@ function FilterSelect({
 
 export default function CAListPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
@@ -108,11 +111,13 @@ export default function CAListPage() {
               Track, implement, and verify the effectiveness of corrective actions.
             </p>
           </div>
-          <Link to="/corrective-actions/new">
-            <Button size="md" iconLeft={<PlusIcon className="w-4 h-4" />}>
-              Raise Action
-            </Button>
-          </Link>
+          {can.manageCAs(user?.role ?? '') && (
+            <Link to="/corrective-actions/new">
+              <Button size="md" iconLeft={<PlusIcon className="w-4 h-4" />}>
+                Raise Action
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* ── Stats row ─────────────────────────────────────────────────────── */}
@@ -197,7 +202,7 @@ export default function CAListPage() {
                   : 'Raise a corrective action from an investigation or directly here.'
               }
               action={
-                !hasFilters ? (
+                !hasFilters && can.manageCAs(user?.role ?? '') ? (
                   <Link to="/corrective-actions/new">
                     <Button size="sm" iconLeft={<PlusIcon className="w-3.5 h-3.5" />}>
                       Raise first action

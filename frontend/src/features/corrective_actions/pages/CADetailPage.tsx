@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeftIcon,
   PencilSquareIcon,
-  ArrowsRightLeftIcon,
   CalendarDaysIcon,
   UserCircleIcon,
   ClockIcon,
@@ -23,16 +22,14 @@ import Input from '@/components/ui/Input';
 import { Tabs, TabList, Tab, TabPanel } from '@/components/ui/Tabs';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import { useCorrectiveAction } from '../hooks/useCorrectiveActions';
-import { useTransitionCA, useUpdateCA, useAddEffectivenessReview } from '../hooks/useCorrectiveActionMutations';
+import { useUpdateCA, useAddEffectivenessReview } from '../hooks/useCorrectiveActionMutations';
 import CAStatusBadge from '../components/CAStatusBadge';
 import CAPriorityBadge from '../components/CAPriorityBadge';
 import {
-  CA_STATUS_LABELS,
   CA_TYPE_LABELS,
   EFFECTIVENESS_RATING_LABELS,
 } from '../types/ca.types';
 import type {
-  CAStatus,
   CorrectiveAction,
   EffectivenessRating,
   EffectivenessReview,
@@ -139,61 +136,6 @@ function DetailSkeleton() {
         </div>
       </div>
     </div>
-  );
-}
-
-// ─── Transition modal ─────────────────────────────────────────────────────────
-
-function TransitionModal({
-  isOpen, targetStatus, onClose, onConfirm, isLoading,
-}: {
-  isOpen: boolean;
-  targetStatus: CAStatus | null;
-  onClose: () => void;
-  onConfirm: (comment: string) => void;
-  isLoading: boolean;
-}) {
-  const [comment, setComment] = useState('');
-
-  function handleClose() { setComment(''); onClose(); }
-  function handleConfirm() { onConfirm(comment); }
-
-  if (!targetStatus) return null;
-
-  const isReopen = targetStatus === 'reopened';
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={isReopen ? 'Reopen Action' : `Advance to: ${CA_STATUS_LABELS[targetStatus]}`}
-      description="Optionally add a comment to explain this status change."
-      size="md"
-      footer={
-        <>
-          <Button variant="ghost" size="sm" onClick={handleClose} disabled={isLoading}>Cancel</Button>
-          <Button size="sm" loading={isLoading} onClick={handleConfirm}>Confirm</Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <div className="flex items-center gap-3 p-3 bg-stone-50 rounded-xl border border-stone-100">
-          <ArrowsRightLeftIcon className="w-4 h-4 text-slate-400 shrink-0" />
-          <p className="text-sm text-slate-600">
-            Status will change to{' '}
-            <span className="font-medium text-slate-900">{CA_STATUS_LABELS[targetStatus]}</span>
-          </p>
-        </div>
-        <Textarea
-          id="transition-comment"
-          label="Comment (optional)"
-          placeholder="Add a note…"
-          rows={3}
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-        />
-      </div>
-    </Modal>
   );
 }
 
@@ -609,20 +551,10 @@ function EffectivenessReviewCard({ review, reviewNumber }: { review: Effectivene
 export default function CADetailPage() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState('details');
-  const [transitionModal, setTransitionModal] = useState<{ open: boolean; targetStatus: CAStatus | null }>({
-    open: false, targetStatus: null,
-  });
   const [reviewModal, setReviewModal] = useState(false);
 
   const { data: ca, isLoading, error } = useCorrectiveAction(id!);
-  const transitionCA = useTransitionCA(id!);
   const addReview = useAddEffectivenessReview(id!);
-
-  async function handleTransition(comment: string) {
-    if (!transitionModal.targetStatus) return;
-    await transitionCA.mutateAsync({ new_status: transitionModal.targetStatus, comment: comment || undefined });
-    setTransitionModal({ open: false, targetStatus: null });
-  }
 
   async function handleAddReview(data: {
     review_date: string;
@@ -738,17 +670,6 @@ export default function CADetailPage() {
                   Record Review
                 </Button>
               )}
-              {ca.allowed_transitions.filter(s => s !== 'closed').map((newStatus) => (
-                <Button
-                  key={newStatus}
-                  variant={newStatus === 'reopened' ? 'secondary' : 'primary'}
-                  size="sm"
-                  iconLeft={<ArrowsRightLeftIcon className="w-3.5 h-3.5" />}
-                  onClick={() => setTransitionModal({ open: true, targetStatus: newStatus })}
-                >
-                  {CA_STATUS_LABELS[newStatus]}
-                </Button>
-              ))}
             </div>
           </div>
         </div>
@@ -892,14 +813,6 @@ export default function CADetailPage() {
       </div>
 
       {/* ── Modals ─────────────────────────────────────────────────────────────── */}
-      <TransitionModal
-        isOpen={transitionModal.open}
-        targetStatus={transitionModal.targetStatus}
-        onClose={() => setTransitionModal({ open: false, targetStatus: null })}
-        onConfirm={handleTransition}
-        isLoading={transitionCA.isPending}
-      />
-
       <AddEffectivenessReviewModal
         isOpen={reviewModal}
         onClose={() => setReviewModal(false)}

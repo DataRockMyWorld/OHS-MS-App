@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
 from .models import Investigation, RootCause, InvestigationTeamMember, InvestigationStatusHistory
-from .constants import InvestigationStatus, VALID_STATUS_TRANSITIONS
+from .constants import InvestigationStatus, VALID_STATUS_TRANSITIONS, TRANSITION_PERMITTED_ROLES
 
 User = get_user_model()
 
@@ -115,7 +115,12 @@ class InvestigationListSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_allowed_transitions(self, obj):
-        return VALID_STATUS_TRANSITIONS.get(obj.status, [])
+        user = self.context.get('request').user if self.context.get('request') else None
+        role = getattr(user, 'role', None) or 'employee'
+        return [
+            t for t in VALID_STATUS_TRANSITIONS.get(obj.status, [])
+            if role in TRANSITION_PERMITTED_ROLES.get(t, [])
+        ]
 
     def get_root_cause_count(self, obj):
         if hasattr(obj, '_root_cause_count'):
@@ -169,7 +174,12 @@ class InvestigationDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_allowed_transitions(self, obj):
-        return VALID_STATUS_TRANSITIONS.get(obj.status, [])
+        user = self.context.get('request').user if self.context.get('request') else None
+        role = getattr(user, 'role', None) or 'employee'
+        return [
+            t for t in VALID_STATUS_TRANSITIONS.get(obj.status, [])
+            if role in TRANSITION_PERMITTED_ROLES.get(t, [])
+        ]
 
     def get_is_overdue(self, obj):
         from django.utils import timezone

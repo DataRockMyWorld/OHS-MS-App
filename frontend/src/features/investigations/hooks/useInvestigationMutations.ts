@@ -26,8 +26,8 @@ export function useUpdateInvestigation(id: string) {
   return useMutation({
     mutationFn: (payload: UpdateInvestigationPayload) =>
       investigationsApi.update(id, payload),
-    onSuccess: (data) => {
-      qc.setQueryData(investigationKeys.detail(id), data);
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: investigationKeys.detail(id) });
       qc.invalidateQueries({ queryKey: investigationKeys.lists() });
     },
   });

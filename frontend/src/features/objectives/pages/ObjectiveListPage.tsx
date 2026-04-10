@@ -11,10 +11,25 @@ import StatCard from '@/components/ui/StatCard';
 import EmptyState from '@/components/ui/EmptyState';
 import { SkeletonTableRow } from '@/components/ui/Skeleton';
 import { formatDate } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { can } from '@/lib/permissions';
 import { useObjectives, useObjectiveStats } from '../hooks/useObjectives';
 import ObjectiveStatusBadge from '../components/ObjectiveStatusBadge';
 import AchievementBar from '../components/AchievementBar';
-import type { ObjectiveStatus } from '../types/objective.types';
+import type { ObjectiveStatus, EffectivenessDecision } from '../types/objective.types';
+
+const EFFECTIVENESS_LABELS: Record<EffectivenessDecision, string> = {
+  pending: 'Pending',
+  effective: 'Effective',
+  partially_effective: 'Partial',
+  not_effective: 'Not Effective',
+};
+const EFFECTIVENESS_CLS: Record<EffectivenessDecision, string> = {
+  pending: 'bg-stone-100 text-slate-400',
+  effective: 'bg-emerald-50 text-emerald-700',
+  partially_effective: 'bg-amber-50 text-amber-700',
+  not_effective: 'bg-red-50 text-red-700',
+};
 
 const LINKED_METRIC_LABELS: Record<string, string> = {
   manual: 'Manual Entry',
@@ -72,6 +87,7 @@ function FilterSelect({
 
 export default function ObjectiveListPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'organizational' | 'individual'>('organizational');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -100,11 +116,13 @@ export default function ObjectiveListPage() {
               Track safety objectives and key performance indicators across your organization.
             </p>
           </div>
-          <Link to="/objectives/new">
-            <Button size="md" iconLeft={<PlusIcon className="w-4 h-4" />}>
-              New Objective
-            </Button>
-          </Link>
+          {can.manageObjectives(user?.role ?? '') && (
+            <Link to="/objectives/new">
+              <Button size="md" iconLeft={<PlusIcon className="w-4 h-4" />}>
+                New Objective
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* Stat cards */}
@@ -191,18 +209,20 @@ export default function ObjectiveListPage() {
               title={`No ${activeTab} objectives yet`}
               description="Create your first objective to start tracking safety performance."
               action={
-                <Link to="/objectives/new">
-                  <Button size="sm" iconLeft={<PlusIcon className="w-3.5 h-3.5" />}>
-                    New Objective
-                  </Button>
-                </Link>
+                can.manageObjectives(user?.role ?? '') ? (
+                  <Link to="/objectives/new">
+                    <Button size="sm" iconLeft={<PlusIcon className="w-3.5 h-3.5" />}>
+                      New Objective
+                    </Button>
+                  </Link>
+                ) : undefined
               }
             />
           ) : activeTab === 'organizational' ? (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  {['Title', 'Category', 'Linked Metric', 'Progress', 'Status', 'Owner', 'Target Date'].map(
+                  {['Title', 'Category', 'Linked Metric', 'Progress', 'Status', 'Effectiveness', 'Owner', 'Target Date'].map(
                     (col) => (
                       <th
                         key={col}
@@ -239,6 +259,11 @@ export default function ObjectiveListPage() {
                     </td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
                       <ObjectiveStatusBadge status={obj.status} size="sm" />
+                    </td>
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${EFFECTIVENESS_CLS[obj.effectiveness_decision]}`}>
+                        {EFFECTIVENESS_LABELS[obj.effectiveness_decision]}
+                      </span>
                     </td>
                     <td className="px-4 py-3.5 whitespace-nowrap">
                       <span className="text-xs text-slate-500">{obj.owner_name ?? '—'}</span>

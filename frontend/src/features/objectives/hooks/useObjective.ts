@@ -20,8 +20,8 @@ export function useObjective(id: string) {
 export function useUpdateObjective() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Partial<CreateObjectivePayload> }) =>
-      updateObjective(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<CreateObjectivePayload> & Record<string, unknown> }) =>
+      updateObjective(id, payload as Partial<CreateObjectivePayload>),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['objective', data.id] });
       queryClient.invalidateQueries({ queryKey: ['objectives'] });

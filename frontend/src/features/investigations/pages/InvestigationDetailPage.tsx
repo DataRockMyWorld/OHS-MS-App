@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeftIcon,
   PencilSquareIcon,
-  ArrowsRightLeftIcon,
   CalendarDaysIcon,
   UserCircleIcon,
   ClockIcon,
@@ -24,20 +23,18 @@ import Select from '@/components/ui/Select';
 import { Tabs, TabList, Tab, TabPanel } from '@/components/ui/Tabs';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import { useInvestigation } from '../hooks/useInvestigations';
+import GenerateReportButton from '../reports/GenerateReportButton';
 import {
-  useTransitionInvestigation,
   useUpdateInvestigation,
   useAddRootCause,
   useDeleteRootCause,
 } from '../hooks/useInvestigationMutations';
 import InvestigationStatusBadge from '../components/InvestigationStatusBadge';
 import {
-  INVESTIGATION_STATUS_LABELS,
   RCA_METHOD_LABELS,
   ROOT_CAUSE_CATEGORY_LABELS,
 } from '../types/investigation.types';
 import type {
-  InvestigationStatus,
   Investigation,
   RootCauseCategory,
   RCAMethod,
@@ -146,76 +143,6 @@ function DetailSkeleton() {
   );
 }
 
-// ─── Transition modal ─────────────────────────────────────────────────────────
-
-function TransitionModal({
-  isOpen,
-  targetStatus,
-  onClose,
-  onConfirm,
-  isLoading,
-}: {
-  isOpen: boolean;
-  targetStatus: InvestigationStatus | null;
-  onClose: () => void;
-  onConfirm: (comment: string) => void;
-  isLoading: boolean;
-}) {
-  const [comment, setComment] = useState('');
-
-  function handleConfirm() {
-    onConfirm(comment);
-  }
-
-  function handleClose() {
-    setComment('');
-    onClose();
-  }
-
-  if (!targetStatus) return null;
-
-  const label = INVESTIGATION_STATUS_LABELS[targetStatus];
-  const isReopen = targetStatus === 'initiated';
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      title={isReopen ? 'Reopen Investigation' : `Advance to: ${label}`}
-      description="Optionally add a comment to explain this status change."
-      size="md"
-      footer={
-        <>
-          <Button variant="ghost" size="sm" onClick={handleClose} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button size="sm" loading={isLoading} onClick={handleConfirm}>
-            {isReopen ? 'Reopen' : 'Confirm'}
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <div className="flex items-center gap-3 p-3 bg-stone-50 rounded-xl border border-stone-100">
-          <ArrowsRightLeftIcon className="w-4 h-4 text-slate-400 shrink-0" />
-          <p className="text-sm text-slate-600">
-            Status will change to{' '}
-            <span className="font-medium text-slate-900">{label}</span>
-          </p>
-        </div>
-        <Textarea
-          id="transition-comment"
-          label="Comment (optional)"
-          placeholder="Add a note about this transition…"
-          rows={3}
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-        />
-      </div>
-    </Modal>
-  );
-}
-
 // ─── Add root cause modal ─────────────────────────────────────────────────────
 
 function AddRootCauseModal({
@@ -223,11 +150,13 @@ function AddRootCauseModal({
   onClose,
   onConfirm,
   isLoading,
+  error,
 }: {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (category: RootCauseCategory, description: string) => void;
   isLoading: boolean;
+  error?: string;
 }) {
   const [category, setCategory] = useState<RootCauseCategory | ''>('');
   const [description, setDescription] = useState('');
@@ -264,6 +193,9 @@ function AddRootCauseModal({
       }
     >
       <div className="space-y-4">
+        {error && (
+          <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
+        )}
         <Select
           id="rc-category"
           label="Category"
@@ -299,11 +231,15 @@ function OverviewPanel({ investigation }: { investigation: Investigation }) {
   const [timelineVal, setTimelineVal] = useState(investigation.timeline_of_events);
 
   async function handleSave() {
-    await updateInvestigation.mutateAsync({
-      scope: scopeVal,
-      timeline_of_events: timelineVal,
-    });
-    setEditing(false);
+    try {
+      await updateInvestigation.mutateAsync({
+        scope: scopeVal,
+        timeline_of_events: timelineVal,
+      });
+      setEditing(false);
+    } catch {
+      // error displayed via updateInvestigation.isError
+    }
   }
 
   return (
@@ -340,6 +276,9 @@ function OverviewPanel({ investigation }: { investigation: Investigation }) {
               value={timelineVal}
               onChange={(e) => setTimelineVal(e.target.value)}
             />
+            {updateInvestigation.isError && (
+              <p className="text-xs text-red-600 text-right">Failed to save. You may not have permission to edit this investigation.</p>
+            )}
             <div className="flex items-center gap-2 justify-end">
               <Button
                 variant="ghost"
@@ -416,13 +355,21 @@ function RCAPanel({ investigation }: { investigation: Investigation }) {
   const [rcaMethod, setRcaMethod] = useState<RCAMethod | ''>(investigation.rca_method ?? '');
 
   async function handleAddRootCause(category: RootCauseCategory, description: string) {
-    await addRootCause.mutateAsync({ category, description });
-    setShowModal(false);
+    try {
+      await addRootCause.mutateAsync({ category, description });
+      setShowModal(false);
+    } catch {
+      // error displayed via addRootCause.isError in modal
+    }
   }
 
   async function handleSaveMethod() {
-    await updateInvestigation.mutateAsync({ rca_method: (rcaMethod as RCAMethod) || undefined });
-    setEditingMethod(false);
+    try {
+      await updateInvestigation.mutateAsync({ rca_method: (rcaMethod as RCAMethod) || undefined });
+      setEditingMethod(false);
+    } catch {
+      // error displayed via updateInvestigation.isError
+    }
   }
 
   return (
@@ -544,9 +491,10 @@ function RCAPanel({ investigation }: { investigation: Investigation }) {
 
       <AddRootCauseModal
         isOpen={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => { setShowModal(false); addRootCause.reset(); }}
         onConfirm={handleAddRootCause}
         isLoading={addRootCause.isPending}
+        error={addRootCause.isError ? 'Failed to add root cause. You may not have permission to edit this investigation.' : undefined}
       />
     </div>
   );
@@ -564,8 +512,12 @@ function FindingsPanel({ investigation }: { investigation: Investigation }) {
   });
 
   async function handleSave() {
-    await updateInvestigation.mutateAsync(fields);
-    setEditing(false);
+    try {
+      await updateInvestigation.mutateAsync(fields);
+      setEditing(false);
+    } catch {
+      // error displayed via updateInvestigation.isError
+    }
   }
 
   const hasContent = Object.values(fields).some(Boolean);
@@ -608,6 +560,9 @@ function FindingsPanel({ investigation }: { investigation: Investigation }) {
                 onChange={(e) => setFields((f) => ({ ...f, [key]: e.target.value }))}
               />
             ))}
+            {updateInvestigation.isError && (
+              <p className="text-xs text-red-600 text-right">Failed to save. You may not have permission to edit this investigation.</p>
+            )}
             <div className="flex items-center gap-2 justify-end">
               <Button
                 variant="ghost"
@@ -739,31 +694,8 @@ function TeamPanel({ investigation }: { investigation: Investigation }) {
 export default function InvestigationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState('overview');
-  const [transitionModal, setTransitionModal] = useState<{
-    open: boolean;
-    targetStatus: InvestigationStatus | null;
-  }>({ open: false, targetStatus: null });
 
   const { data: investigation, isLoading, error } = useInvestigation(id!);
-  const transitionInvestigation = useTransitionInvestigation(id!);
-
-
-  function openTransitionModal(status: InvestigationStatus) {
-    setTransitionModal({ open: true, targetStatus: status });
-  }
-
-  function closeTransitionModal() {
-    setTransitionModal({ open: false, targetStatus: null });
-  }
-
-  async function handleTransition(comment: string) {
-    if (!transitionModal.targetStatus) return;
-    await transitionInvestigation.mutateAsync({
-      new_status: transitionModal.targetStatus,
-      comment: comment || undefined,
-    });
-    closeTransitionModal();
-  }
 
   if (isLoading) return <DetailSkeleton />;
 
@@ -856,6 +788,8 @@ export default function InvestigationDetailPage() {
 
             {/* Action buttons */}
             <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+              <GenerateReportButton investigation={investigation} variant="rex" />
+              <GenerateReportButton investigation={investigation} variant="investigation" />
               <Link to={`/corrective-actions/new?investigation=${investigation.id}`}>
                 <Button
                   variant="secondary"
@@ -865,17 +799,6 @@ export default function InvestigationDetailPage() {
                   Raise Corrective Action
                 </Button>
               </Link>
-              {investigation.allowed_transitions.map((newStatus) => (
-                <Button
-                  key={newStatus}
-                  variant={newStatus === 'closed' || newStatus === 'initiated' ? 'secondary' : 'primary'}
-                  size="sm"
-                  iconLeft={<ArrowsRightLeftIcon className="w-3.5 h-3.5" />}
-                  onClick={() => openTransitionModal(newStatus)}
-                >
-                  {INVESTIGATION_STATUS_LABELS[newStatus]}
-                </Button>
-              ))}
             </div>
           </div>
         </div>
@@ -996,15 +919,6 @@ export default function InvestigationDetailPage() {
         </div>
 
       </div>
-
-      {/* ── Transition modal ─────────────────────────────────────────────────── */}
-      <TransitionModal
-        isOpen={transitionModal.open}
-        targetStatus={transitionModal.targetStatus}
-        onClose={closeTransitionModal}
-        onConfirm={handleTransition}
-        isLoading={transitionInvestigation.isPending}
-      />
 
     </div>
   );

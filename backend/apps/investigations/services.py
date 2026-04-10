@@ -199,6 +199,56 @@ class InvestigationService:
             investigation.incident.save(update_fields=['investigation_id', 'updated_at'])
 
     @staticmethod
+    def auto_advance(investigation: Investigation) -> None:
+        """
+        Fire one status step forward if the data conditions are met. Idempotent.
+        Called after every PATCH and after a root cause is added.
+        """
+        current = investigation.status
+        target = None
+
+        if current == InvestigationStatus.INITIATED:
+            if investigation.scope and investigation.timeline_of_events:
+                target = InvestigationStatus.IN_PROGRESS
+
+        elif current == InvestigationStatus.IN_PROGRESS:
+            if investigation.root_causes.exists() and investigation.findings:
+                target = InvestigationStatus.FINDINGS_RECORDED
+
+        elif current == InvestigationStatus.FINDINGS_RECORDED:
+            if investigation.recommendations:
+                target = InvestigationStatus.RECOMMENDATIONS_ISSUED
+
+        if target:
+            InvestigationService.transition_status(
+                investigation=investigation,
+                new_status=target,
+                changed_by=investigation.lead_investigator,
+                comment='Auto-advanced by system.',
+                bypass_role_check=True,
+            )
+
+    @staticmethod
+    def check_cascade_close(investigation: Investigation) -> None:
+        """
+        Close the investigation if it is in RECOMMENDATIONS_ISSUED and all linked
+        corrective actions are now closed. Called by CAService after a CA closes.
+        """
+        from apps.corrective_actions.constants import CAStatus
+
+        if investigation.status != InvestigationStatus.RECOMMENDATIONS_ISSUED:
+            return
+        linked = investigation.corrective_actions.all()
+        if linked.exists() and not linked.exclude(status=CAStatus.CLOSED).exists():
+            InvestigationService.transition_status(
+                investigation=investigation,
+                new_status=InvestigationStatus.CLOSED,
+                changed_by=investigation.lead_investigator,
+                comment='Auto-closed: all corrective actions completed.',
+                bypass_role_check=True,
+            )
+
+    @staticmethod
     def get_organization_stats(organization_id) -> dict:
         from django.db.models import Count, Q
 

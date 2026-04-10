@@ -58,8 +58,10 @@ class InvestigationPermission(BasePermission):
         if role == 'supervisor':
             if request.method in SAFE_METHODS:
                 return True
-            # Supervisors can edit investigations they lead
-            return str(obj.lead_investigator_id) == str(user.id)
+            # Supervisors can edit investigations they lead OR are a team member of
+            if str(obj.lead_investigator_id) == str(user.id):
+                return True
+            return obj.team_members.filter(id=user.id).exists()
 
         return False
 

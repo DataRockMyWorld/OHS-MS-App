@@ -77,3 +77,44 @@ class User(AbstractUser):
             UserRole.HSE_MANAGER,
             UserRole.SUPERVISOR,
         )
+
+
+# ── Notifications ──────────────────────────────────────────────────────────────
+
+class NotificationType(models.TextChoices):
+    INCIDENT_ASSIGNED = 'incident_assigned', 'Incident Assigned to You'
+    CA_ASSIGNED = 'ca_assigned', 'Corrective Action Assigned to You'
+    CA_OVERDUE = 'ca_overdue', 'Corrective Action Overdue'
+    INVESTIGATION_ASSIGNED = 'investigation_assigned', 'Investigation Assigned to You'
+    INVESTIGATION_OVERDUE = 'investigation_overdue', 'Investigation Overdue'
+    GENERAL = 'general', 'General'
+
+
+class Notification(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='notifications'
+    )
+    organization = models.ForeignKey(
+        'core.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='notifications',
+    )
+    notification_type = models.CharField(
+        max_length=50,
+        choices=NotificationType.choices,
+        default=NotificationType.GENERAL,
+    )
+    title = models.CharField(max_length=255)
+    body = models.TextField(blank=True)
+    link = models.CharField(max_length=500, blank=True)
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'accounts_notification'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.notification_type} → {self.user_id}"

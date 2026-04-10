@@ -90,6 +90,15 @@ class CorrectiveActionViewSet(viewsets.ModelViewSet):
         )
         return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
 
+    def partial_update(self, request, *args, **kwargs):
+        response = super().partial_update(request, *args, **kwargs)
+        instance = self.get_object()
+        CorrectiveActionService.auto_advance(instance)
+        instance.refresh_from_db()
+        return Response(
+            CADetailSerializer(instance, context=self.get_serializer_context()).data
+        )
+
     def perform_destroy(self, instance):
         CorrectiveActionService.soft_delete(
             ca=instance,

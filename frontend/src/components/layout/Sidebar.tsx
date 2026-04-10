@@ -1,6 +1,7 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { ROLE_RANK } from '@/lib/permissions';
 import {
   Squares2X2Icon,
   ExclamationTriangleIcon,
@@ -14,6 +15,8 @@ import {
   ShieldCheckIcon,
   ArrowRightStartOnRectangleIcon,
   BookOpenIcon,
+  MagnifyingGlassCircleIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline';
 
 interface NavItem {
@@ -21,6 +24,7 @@ interface NavItem {
   href: string;
   icon: React.ElementType;
   soon?: boolean;
+  minRole?: string;
 }
 
 const MODULES: NavItem[] = [
@@ -28,11 +32,13 @@ const MODULES: NavItem[] = [
   { label: 'Incidents',          href: '/incidents',           icon: ExclamationTriangleIcon },
   { label: 'Investigations',     href: '/investigations',       icon: MagnifyingGlassIcon },
   { label: 'Corrective Actions', href: '/corrective-actions',  icon: CheckCircleIcon },
+  { label: 'Context Register',   href: '/context',             icon: ClipboardDocumentCheckIcon, minRole: 'supervisor' },
   { label: 'Objectives & KPIs',  href: '/objectives',          icon: FlagIcon },
-  { label: 'Documents',          href: '/documents',           icon: DocumentTextIcon,           soon: true },
-  { label: 'Audits',             href: '/audits',              icon: ClipboardDocumentCheckIcon, soon: true },
-  { label: 'Risk Assessments',   href: '/risk-assessments',   icon: ShieldExclamationIcon,      soon: true },
-  { label: 'Reports',            href: '/reports',             icon: ChartBarIcon,               soon: true },
+  { label: 'Team',               href: '/team',                icon: UsersIcon,                  minRole: 'supervisor' },
+  { label: 'Risk Assessments',   href: '/risk-assessments',   icon: ShieldExclamationIcon,      minRole: 'supervisor' },
+  { label: 'Reports',            href: '/reports',             icon: ChartBarIcon,               minRole: 'supervisor' },
+  { label: 'Audits',             href: '/audits',              icon: MagnifyingGlassCircleIcon,  minRole: 'supervisor' },
+  { label: 'Legal Register',     href: '/legal',               icon: DocumentTextIcon,           minRole: 'supervisor' },
 ];
 
 const REFERENCE: NavItem[] = [
@@ -87,6 +93,11 @@ export default function Sidebar() {
     ? (user.first_name?.[0] ?? '') + (user.last_name?.[0] ?? '')
     : '?';
 
+  const userRank = ROLE_RANK[user?.role ?? ''] ?? 0;
+  const visibleModules = MODULES.filter(
+    (item) => !item.minRole || userRank >= (ROLE_RANK[item.minRole] ?? 0),
+  );
+
   return (
     <aside className="fixed inset-y-0 left-0 w-60 bg-white border-r border-slate-100 flex flex-col z-10">
       {/* Brand */}
@@ -106,7 +117,7 @@ export default function Sidebar() {
           Modules
         </p>
         <ul className="space-y-0.5">
-          {MODULES.map((item) => (
+          {visibleModules.map((item) => (
             <NavItemRow key={item.href} item={item} />
           ))}
         </ul>
@@ -131,7 +142,10 @@ export default function Sidebar() {
           </div>
         )}
 
-        <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors group">
+        <Link
+          to="/profile"
+          className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors group"
+        >
           <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-primary-100 text-primary-700 text-xs font-semibold shrink-0 uppercase">
             {initials || '?'}
           </div>
@@ -142,13 +156,13 @@ export default function Sidebar() {
             </p>
           </div>
           <button
-            onClick={logout}
+            onClick={(e) => { e.preventDefault(); logout(); }}
             title="Sign out"
             className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
           >
             <ArrowRightStartOnRectangleIcon className="w-4 h-4" />
           </button>
-        </div>
+        </Link>
       </div>
     </aside>
   );

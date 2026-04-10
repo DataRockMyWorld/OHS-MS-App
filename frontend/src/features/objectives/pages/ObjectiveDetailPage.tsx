@@ -10,6 +10,9 @@ import {
   MinusIcon,
   SparklesIcon,
   CheckBadgeIcon,
+  PencilIcon,
+  CheckIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import {
   LineChart,
@@ -23,11 +26,14 @@ import {
 } from 'recharts';
 import Button from '@/components/ui/Button';
 import { formatDate } from '@/lib/utils';
-import { useObjective } from '../hooks/useObjective';
+import { useAuth } from '@/contexts/AuthContext';
+import { can } from '@/lib/permissions';
+import { useObjective, useUpdateObjective } from '../hooks/useObjective';
 import { useComputeMetric, useCreateMeasurement } from '../hooks/useObjective';
+import { useOrgUsers } from '@/features/accounts/hooks/useOrgUsers';
 import ObjectiveStatusBadge from '../components/ObjectiveStatusBadge';
 import AchievementBar from '../components/AchievementBar';
-import type { ComputeMetricResult } from '../types/objective.types';
+import type { ComputeMetricResult, EffectivenessDecision } from '../types/objective.types';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -65,6 +71,24 @@ function ChartTooltip({
   );
 }
 
+// ─── Effectiveness badge ──────────────────────────────────────────────────────
+
+const EFFECTIVENESS_CONFIG: Record<EffectivenessDecision, { label: string; cls: string }> = {
+  pending:              { label: 'Pending Review',       cls: 'bg-stone-100 text-slate-500 border-stone-200' },
+  effective:            { label: 'Effective',            cls: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+  partially_effective:  { label: 'Partially Effective',  cls: 'bg-amber-50 text-amber-700 border-amber-100' },
+  not_effective:        { label: 'Not Effective',        cls: 'bg-red-50 text-red-700 border-red-100' },
+};
+
+function EffectivenessBadge({ value }: { value: EffectivenessDecision }) {
+  const cfg = EFFECTIVENESS_CONFIG[value];
+  return (
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.cls}`}>
+      {cfg.label}
+    </span>
+  );
+}
+
 // ─── Status border accent ─────────────────────────────────────────────────────
 
 const STATUS_BORDER: Record<string, string> = {
@@ -79,11 +103,23 @@ const STATUS_BORDER: Record<string, string> = {
 
 export default function ObjectiveDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const { data: objective, isLoading } = useObjective(id!);
   const computeMetric = useComputeMetric();
   const createMeasurement = useCreateMeasurement();
+  const updateObjective = useUpdateObjective();
+  const { data: users = [] } = useOrgUsers();
 
   const [computeResult, setComputeResult] = useState<ComputeMetricResult | null>(null);
+  const [editingReview, setEditingReview] = useState(false);
+  const [reviewForm, setReviewForm] = useState({
+    effectiveness_decision: 'pending' as EffectivenessDecision,
+    effectiveness_notes: '',
+    evidence_of_review: '',
+    final_result: '',
+    review_date: '',
+    reviewed_by: '',
+  });
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -185,6 +221,7 @@ export default function ObjectiveDetailPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-3">
                   <ObjectiveStatusBadge status={objective.status} />
+                  <EffectivenessBadge value={objective.effectiveness_decision} />
                   <span className="text-xs font-medium bg-stone-100 text-slate-600 px-2.5 py-1 rounded-full capitalize">
                     {objective.scope}
                   </span>
@@ -247,8 +284,221 @@ export default function ObjectiveDetailPage() {
             </div>
           </div>
 
-          {/* Log Measurement */}
+          {/* Source (R&O link) */}
+          {objective.risk_or_opportunity_id && (
+            <div className="bg-white rounded-2xl border border-stone-100 shadow-sm px-6 py-5">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-3">Source</p>
+              <div className="flex items-start gap-3">
+                {objective.risk_or_opportunity_type === 'risk' ? (
+                  <span className="text-[10px] font-semibold bg-red-50 text-red-700 border border-red-100 px-2 py-0.5 rounded-full shrink-0 mt-0.5">Risk</span>
+                ) : (
+                  <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full shrink-0 mt-0.5">Opportunity</span>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800">{objective.risk_or_opportunity_title}</p>
+                  <a
+                    href={`/context/risks-and-opportunities/${objective.risk_or_opportunity_id}`}
+                    className="text-xs text-primary-600 hover:text-primary-700 mt-1 inline-block"
+                  >
+                    View in Context Register →
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Planning card */}
+          {(objective.present_status || objective.planned_actions || objective.responsible_persons || objective.expected_result || objective.kpi_description) && (
+            <div className="bg-white rounded-2xl border border-stone-100 shadow-sm px-6 py-6">
+              <h2 className="text-sm font-semibold text-slate-900 mb-4">Planning</h2>
+              <dl className="space-y-4">
+                {objective.kpi_description && (
+                  <div>
+                    <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">KPI</dt>
+                    <dd className="mt-1 text-sm text-slate-700">{objective.kpi_description}</dd>
+                  </div>
+                )}
+                {objective.present_status && (
+                  <div>
+                    <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Present Status</dt>
+                    <dd className="mt-1 text-sm text-slate-700 leading-relaxed whitespace-pre-line">{objective.present_status}</dd>
+                  </div>
+                )}
+                {objective.planned_actions && (
+                  <div>
+                    <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Actions</dt>
+                    <dd className="mt-1 text-sm text-slate-700 leading-relaxed whitespace-pre-line">{objective.planned_actions}</dd>
+                  </div>
+                )}
+                {objective.responsible_persons && (
+                  <div>
+                    <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Responsibility</dt>
+                    <dd className="mt-1 text-sm text-slate-700 leading-relaxed">{objective.responsible_persons}</dd>
+                  </div>
+                )}
+                {objective.expected_result && (
+                  <div>
+                    <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Expected Result</dt>
+                    <dd className="mt-1 text-sm text-slate-700 leading-relaxed whitespace-pre-line">{objective.expected_result}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
+          {/* Effectiveness Review card */}
           <div className="bg-white rounded-2xl border border-stone-100 shadow-sm px-6 py-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Effectiveness Review</h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Was this objective effective? Document the review outcome and evidence.
+                </p>
+              </div>
+              {!editingReview && can.manageObjectives(user?.role ?? '') && (
+                <button
+                  onClick={() => {
+                    setReviewForm({
+                      effectiveness_decision: objective.effectiveness_decision,
+                      effectiveness_notes: objective.effectiveness_notes,
+                      evidence_of_review: objective.evidence_of_review,
+                      final_result: objective.final_result,
+                      review_date: objective.review_date ?? '',
+                      reviewed_by: objective.reviewed_by_id ?? '',
+                    });
+                    setEditingReview(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary-200 bg-primary-50 text-primary-700 text-xs font-semibold hover:bg-primary-100 transition-colors shrink-0"
+                >
+                  <PencilIcon className="w-3.5 h-3.5" />
+                  {objective.effectiveness_decision === 'pending' ? 'Record Review' : 'Edit Review'}
+                </button>
+              )}
+            </div>
+
+            {editingReview ? (
+              <div className="space-y-4">
+                {/* Decision radio */}
+                <div>
+                  <p className="text-xs font-medium text-slate-700 mb-2">Decision on Effectiveness</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(Object.entries(EFFECTIVENESS_CONFIG) as [EffectivenessDecision, typeof EFFECTIVENESS_CONFIG[EffectivenessDecision]][]).map(([val, cfg]) => (
+                      <label key={val} className={[
+                        'flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer text-xs font-medium transition-all',
+                        reviewForm.effectiveness_decision === val
+                          ? 'border-primary-400 bg-primary-50 text-primary-700 ring-1 ring-primary-300'
+                          : 'border-stone-200 bg-white text-slate-600 hover:border-stone-300',
+                      ].join(' ')}>
+                        <input type="radio" className="sr-only" checked={reviewForm.effectiveness_decision === val} onChange={() => setReviewForm(f => ({ ...f, effectiveness_decision: val }))} />
+                        {cfg.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Review Date</label>
+                    <input type="date" value={reviewForm.review_date} onChange={(e) => setReviewForm(f => ({ ...f, review_date: e.target.value }))}
+                      className="w-full h-9 px-3 text-sm rounded-lg border border-stone-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Reviewed By</label>
+                    <select value={reviewForm.reviewed_by} onChange={(e) => setReviewForm(f => ({ ...f, reviewed_by: e.target.value }))}
+                      className="w-full h-9 pl-3 pr-9 text-sm rounded-lg border border-stone-200 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-colors"
+                      style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2394a3b8'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', backgroundSize: '14px' }}>
+                      <option value="">Select reviewer…</option>
+                      {users.map((u) => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">Effectiveness Notes</label>
+                  <textarea rows={3} placeholder="Narrative supporting the effectiveness decision…"
+                    value={reviewForm.effectiveness_notes} onChange={(e) => setReviewForm(f => ({ ...f, effectiveness_notes: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-stone-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-colors resize-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">Documented Evidence of Review</label>
+                  <textarea rows={2} placeholder="References to meeting minutes, audit reports, or documents that evidence the review…"
+                    value={reviewForm.evidence_of_review} onChange={(e) => setReviewForm(f => ({ ...f, evidence_of_review: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-stone-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-colors resize-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">Final Result</label>
+                  <textarea rows={3} placeholder="Documented final outcome — what was actually achieved?"
+                    value={reviewForm.final_result} onChange={(e) => setReviewForm(f => ({ ...f, final_result: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-stone-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-colors resize-none" />
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={async () => {
+                      await updateObjective.mutateAsync({
+                        id: id!,
+                        payload: {
+                          effectiveness_decision: reviewForm.effectiveness_decision,
+                          effectiveness_notes: reviewForm.effectiveness_notes,
+                          evidence_of_review: reviewForm.evidence_of_review,
+                          final_result: reviewForm.final_result,
+                          review_date: reviewForm.review_date || null,
+                          reviewed_by: reviewForm.reviewed_by || null,
+                        } as Parameters<typeof updateObjective.mutateAsync>[0]['payload'],
+                      });
+                      setEditingReview(false);
+                    }}
+                    disabled={updateObjective.isPending}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-700 text-white text-xs font-medium hover:bg-primary-800 disabled:opacity-50 transition-colors"
+                  >
+                    <CheckIcon className="w-3.5 h-3.5" />
+                    {updateObjective.isPending ? 'Saving…' : 'Save Review'}
+                  </button>
+                  <button onClick={() => setEditingReview(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 text-slate-500 text-xs font-medium hover:bg-stone-50 transition-colors">
+                    <XMarkIcon className="w-3.5 h-3.5" />
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <EffectivenessBadge value={objective.effectiveness_decision} />
+                  {objective.review_date && (
+                    <span className="text-xs text-slate-400">
+                      Reviewed {formatDate(objective.review_date)}
+                      {objective.reviewed_by_name && ` by ${objective.reviewed_by_name}`}
+                    </span>
+                  )}
+                </div>
+                {(objective.effectiveness_notes || objective.evidence_of_review || objective.final_result) ? (
+                  <dl className="space-y-3 pt-3 border-t border-stone-100">
+                    {objective.effectiveness_notes && (
+                      <div>
+                        <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Effectiveness Notes</dt>
+                        <dd className="mt-1 text-sm text-slate-700 leading-relaxed whitespace-pre-line">{objective.effectiveness_notes}</dd>
+                      </div>
+                    )}
+                    {objective.evidence_of_review && (
+                      <div>
+                        <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Evidence of Review</dt>
+                        <dd className="mt-1 text-sm text-slate-700 leading-relaxed whitespace-pre-line">{objective.evidence_of_review}</dd>
+                      </div>
+                    )}
+                    {objective.final_result && (
+                      <div>
+                        <dt className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Final Result</dt>
+                        <dd className="mt-1 text-sm text-slate-700 leading-relaxed whitespace-pre-line">{objective.final_result}</dd>
+                      </div>
+                    )}
+                  </dl>
+                ) : objective.effectiveness_decision === 'pending' ? (
+                  <p className="text-xs text-slate-400">No review recorded yet. Click "Record Review" to document the effectiveness assessment.</p>
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          {/* Log Measurement — supervisor+ only */}
+          {can.logMeasurements(user?.role ?? '') && <div className="bg-white rounded-2xl border border-stone-100 shadow-sm px-6 py-6">
             <h2 className="text-sm font-semibold text-slate-900 mb-4">Log Measurement</h2>
 
             {objective.linked_metric !== 'manual' && !computeResult && (
@@ -338,7 +588,7 @@ export default function ObjectiveDetailPage() {
                 Log Measurement
               </Button>
             </form>
-          </div>
+          </div>}
 
           {/* Chart */}
           <div className="bg-white rounded-2xl border border-stone-100 shadow-sm px-6 py-6">

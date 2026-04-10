@@ -48,6 +48,7 @@ class ObjectiveListSerializer(serializers.ModelSerializer):
             'direction',
             'measurement_frequency',
             'linked_metric',
+            'kpi_description',
             'baseline_value',
             'target_value',
             'current_value',
@@ -58,6 +59,8 @@ class ObjectiveListSerializer(serializers.ModelSerializer):
             'owner_name',
             'weight',
             'achievement_pct',
+            'effectiveness_decision',
+            'risk_or_opportunity_id',
             'created_at',
         ]
         read_only_fields = ['id', 'created_at', 'owner_name', 'achievement_pct']
@@ -74,16 +77,37 @@ class ObjectiveListSerializer(serializers.ModelSerializer):
 class ObjectiveDetailSerializer(ObjectiveListSerializer):
     measurements = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
+    reviewed_by_name = serializers.SerializerMethodField()
+    risk_or_opportunity_title = serializers.SerializerMethodField()
+    risk_or_opportunity_type = serializers.SerializerMethodField()
 
     class Meta(ObjectiveListSerializer.Meta):
         fields = ObjectiveListSerializer.Meta.fields + [
             'description',
+            # Planning
+            'present_status',
+            'planned_actions',
+            'responsible_persons',
+            'expected_result',
+            # Review
+            'effectiveness_notes',
+            'evidence_of_review',
+            'final_result',
+            'review_date',
+            'reviewed_by_id',
+            'reviewed_by_name',
+            # Meta
             'created_by_name',
             'measurements',
+            'risk_or_opportunity_title',
+            'risk_or_opportunity_type',
         ]
         read_only_fields = ObjectiveListSerializer.Meta.read_only_fields + [
             'created_by_name',
+            'reviewed_by_name',
             'measurements',
+            'risk_or_opportunity_title',
+            'risk_or_opportunity_type',
         ]
 
     def get_created_by_name(self, obj):
@@ -91,6 +115,21 @@ class ObjectiveDetailSerializer(ObjectiveListSerializer):
             return obj.created_by.get_full_name() or obj.created_by.email
         return None
 
+    def get_reviewed_by_name(self, obj):
+        if obj.reviewed_by:
+            return obj.reviewed_by.get_full_name() or obj.reviewed_by.email
+        return None
+
     def get_measurements(self, obj):
         qs = obj.measurements.order_by('measured_at')[:12]
         return KPIMeasurementSerializer(qs, many=True).data
+
+    def get_risk_or_opportunity_title(self, obj):
+        if obj.risk_or_opportunity:
+            return obj.risk_or_opportunity.title
+        return None
+
+    def get_risk_or_opportunity_type(self, obj):
+        if obj.risk_or_opportunity:
+            return obj.risk_or_opportunity.type
+        return None
