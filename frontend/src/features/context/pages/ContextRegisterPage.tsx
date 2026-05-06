@@ -406,7 +406,7 @@ export default function ContextRegisterPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  {['Name', 'Type', 'Compliance Obligation', 'Review Frequency', 'Last Reviewed', 'Status'].map((col) => (
+                  {['Name', 'Category', 'Type', 'Compliance Obligation', 'Review Frequency', 'Last Reviewed', 'Status'].map((col) => (
                     <th key={col} className="text-left px-4 py-3 text-[11px] font-medium text-slate-400 whitespace-nowrap bg-stone-50/60">
                       {col}
                     </th>
@@ -426,6 +426,11 @@ export default function ContextRegisterPage() {
                       onClick={() => navigate(`/context/interested-parties/${party.id}`)}
                     >
                       <td className="px-4 py-3 font-medium text-slate-800">{party.name}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize ${party.category === 'internal' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-violet-50 text-violet-700 border-violet-100'}`}>
+                          {party.category}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-xs text-slate-500 capitalize">{party.party_type}</td>
                       <td className="px-4 py-3">
                         {party.is_compliance_obligation ? (

@@ -57,6 +57,10 @@ class InterestedParty(models.Model):
         INVESTOR = 'investor', 'Investor'
         OTHER = 'other', 'Other'
 
+    class PartyCategory(models.TextChoices):
+        INTERNAL = 'internal', 'Internal'
+        EXTERNAL = 'external', 'External'
+
     class ReviewFrequency(models.TextChoices):
         ANNUALLY = 'annually', 'Annually'
         SEMI_ANNUALLY = 'semi_annually', 'Semi-Annually'
@@ -69,6 +73,7 @@ class InterestedParty(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='interested_parties')
     name = models.CharField(max_length=255)
+    category = models.CharField(max_length=20, choices=PartyCategory.choices, default=PartyCategory.INTERNAL)
     party_type = models.CharField(max_length=20, choices=PartyType.choices, default=PartyType.OTHER)
     needs_and_expectations = models.TextField()
     is_compliance_obligation = models.BooleanField(default=False)

@@ -9,10 +9,11 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import { Card } from '@/components/ui/Card';
 import { useCreateInterestedParty } from '../hooks/useInterestedParties';
-import type { PartyType, ReviewFrequency } from '../types/context.types';
+import type { PartyCategory, PartyType, ReviewFrequency } from '../types/context.types';
 
 const schema = z.object({
   name: z.string().min(2, 'Name is required').max(255),
+  category: z.enum(['internal', 'external']),
   party_type: z.enum(['worker', 'contractor', 'regulator', 'supplier', 'customer', 'community', 'investor', 'other']),
   needs_and_expectations: z.string().min(1, 'Needs and expectations are required'),
   is_compliance_obligation: z.boolean(),
@@ -38,6 +39,7 @@ export default function CreateInterestedPartyPage() {
   const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      category: 'internal',
       party_type: 'other',
       is_compliance_obligation: false,
       review_frequency: 'annually',
@@ -49,6 +51,7 @@ export default function CreateInterestedPartyPage() {
     try {
       const result = await createParty.mutateAsync({
         name: data.name,
+        category: data.category as PartyCategory,
         party_type: data.party_type as PartyType,
         needs_and_expectations: data.needs_and_expectations,
         is_compliance_obligation: data.is_compliance_obligation,
@@ -79,6 +82,18 @@ export default function CreateInterestedPartyPage() {
           <Card>
             <div className="space-y-4">
               <Input id="name" label="Name" placeholder="e.g. Employees, Health & Safety Regulator" required error={errors.name?.message} {...register('name')} />
+
+              <div>
+                <p className="block text-xs font-medium text-slate-700 mb-2">Category <span className="text-red-500">*</span></p>
+                <div className="flex gap-3">
+                  {(['internal', 'external'] as const).map((val) => (
+                    <label key={val} className="flex items-center gap-2 cursor-pointer">
+                      <input type="radio" value={val} {...register('category')} className="w-4 h-4 text-primary-600 border-stone-300 focus:ring-primary-500" />
+                      <span className="text-sm text-slate-700 capitalize">{val}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
               <div>
                 <label htmlFor="party_type" className="block text-xs font-medium text-slate-700 mb-1.5">Party Type</label>

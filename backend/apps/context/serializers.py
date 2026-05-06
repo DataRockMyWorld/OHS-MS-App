@@ -31,6 +31,7 @@ class InterestedPartySerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'name',
+            'category',
             'party_type',
             'needs_and_expectations',
             'is_compliance_obligation',

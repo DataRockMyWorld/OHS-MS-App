@@ -39,6 +39,7 @@ export type PartyType =
   | 'community'
   | 'investor'
   | 'other';
+export type PartyCategory = 'internal' | 'external';
 export type ReviewFrequency = 'annually' | 'semi_annually' | 'quarterly';
 export type PartyStatus = 'active' | 'inactive';
 export type ROType = 'risk' | 'opportunity';
@@ -48,6 +49,7 @@ export type ROStatus = 'open' | 'being_addressed' | 'closed';
 export interface InterestedParty {
   id: string;
   name: string;
+  category: PartyCategory;
   party_type: PartyType;
   needs_and_expectations: string;
   is_compliance_obligation: boolean;
@@ -129,6 +131,7 @@ export interface CreateIssuePayload {
 
 export interface CreateInterestedPartyPayload {
   name: string;
+  category: PartyCategory;
   party_type: PartyType;
   needs_and_expectations: string;
   is_compliance_obligation: boolean;

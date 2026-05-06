@@ -36,7 +36,7 @@ export default function InterestedPartyDetailPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">{party.name}</h1>
-            <p className="mt-0.5 text-sm text-slate-500 capitalize">Interested Party · {party.party_type}</p>
+            <p className="mt-0.5 text-sm text-slate-500 capitalize">Interested Party · {party.category} · {party.party_type}</p>
           </div>
         </div>
 
@@ -45,6 +45,9 @@ export default function InterestedPartyDetailPage() {
           {/* Details card */}
           <div className="bg-white rounded-2xl border border-stone-100 shadow-sm px-6 py-6">
             <div className="flex items-center gap-2 mb-4">
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${party.category === 'internal' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-violet-50 text-violet-700 border border-violet-100'}`}>
+                {party.category}
+              </span>
               <span className="text-xs font-medium bg-stone-100 text-slate-600 px-2.5 py-1 rounded-full capitalize">{party.party_type}</span>
               {party.is_compliance_obligation && (
                 <span className="text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100 px-2.5 py-1 rounded-full">
