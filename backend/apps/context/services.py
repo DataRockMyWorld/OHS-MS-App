@@ -29,8 +29,8 @@ class ContextService:
             'open': qs.filter(status='open').count(),
             'monitored': qs.filter(status='monitored').count(),
             'addressed': qs.filter(status='addressed').count(),
-            'internal': qs.filter(type='internal').count(),
-            'external': qs.filter(type='external').count(),
+            'internal': qs.filter(category='internal').count(),
+            'external': qs.filter(category='external').count(),
         }
 
     @staticmethod

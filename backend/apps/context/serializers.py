@@ -53,7 +53,7 @@ class ContextIssueListSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'title',
-            'type',
+            'category',
             'analysis_tag',
             'classification',
             'status',
@@ -94,7 +94,7 @@ class ContextIssueWriteSerializer(serializers.ModelSerializer):
         fields = [
             'title',
             'description',
-            'type',
+            'category',
             'analysis_tag',
             'classification',
             'interested_party',

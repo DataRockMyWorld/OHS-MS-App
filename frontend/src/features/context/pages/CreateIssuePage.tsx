@@ -34,7 +34,7 @@ const SWOT_EXPLAINER: Record<string, string> = {
 const schema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters').max(255),
   description: z.string().min(1, 'Description is required'),
-  type: z.enum(['internal', 'external']),
+  category: z.enum(['internal', 'external']),
   analysis_tag: z.enum([
     'swot_strength', 'swot_weakness', 'swot_opportunity', 'swot_threat',
     'pestle_political', 'pestle_economic', 'pestle_social', 'pestle_technological',
@@ -136,7 +136,7 @@ export default function CreateIssuePage() {
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      type: 'internal',
+      category: 'internal',
       analysis_tag: 'other',
       classification: 'risk',
       status: 'open',
@@ -145,7 +145,7 @@ export default function CreateIssuePage() {
   });
 
   const analysisTag = watch('analysis_tag') as AnalysisTag;
-  const type = watch('type') as IssueType;
+  const category = watch('category') as IssueType;
   const classification = watch('classification') as IssueClassification;
 
   const isSwot = analysisTag.startsWith('swot_');
@@ -158,7 +158,7 @@ export default function CreateIssuePage() {
       const result = await createIssue.mutateAsync({
         title: data.title,
         description: data.description,
-        type: data.type,
+        category: data.category,
         analysis_tag: data.analysis_tag,
         classification: autoClassification ?? data.classification,
         interested_party: data.interested_party || null,
@@ -194,15 +194,15 @@ export default function CreateIssuePage() {
               <Input id="title" label="Issue Title" placeholder="e.g. Inadequate contractor safety induction" required error={errors.title?.message} {...register('title')} />
               <Textarea id="description" label="Description" placeholder="Describe the issue in detail…" rows={3} error={errors.description?.message} {...register('description')} />
               <RadioGroup<IssueType>
-                label="Type"
-                name="type"
-                value={type}
-                onChange={(v) => setValue('type', v)}
+                label="Category"
+                name="category"
+                value={category}
+                onChange={(v) => setValue('category', v)}
                 options={[
                   { value: 'internal', label: 'Internal' },
                   { value: 'external', label: 'External' },
                 ]}
-                error={errors.type?.message}
+                error={errors.category?.message}
               />
             </div>
           </SectionCard>

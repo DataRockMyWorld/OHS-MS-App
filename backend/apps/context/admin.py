@@ -17,8 +17,8 @@ class InterestedPartyAdmin(admin.ModelAdmin):
 
 @admin.register(ContextIssue)
 class ContextIssueAdmin(admin.ModelAdmin):
-    list_display = ['title', 'type', 'analysis_tag', 'classification', 'status', 'organization']
-    list_filter = ['type', 'classification', 'status', 'analysis_tag']
+    list_display = ['title', 'category', 'analysis_tag', 'classification', 'status', 'organization']
+    list_filter = ['category', 'classification', 'status', 'analysis_tag']
     search_fields = ['title']
 
 

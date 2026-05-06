@@ -64,7 +64,7 @@ export interface ContextIssue {
   id: string;
   title: string;
   description?: string;
-  type: IssueType;
+  category: IssueType;
   analysis_tag: AnalysisTag;
   classification: IssueClassification;
   status: IssueStatus;
@@ -120,7 +120,7 @@ export interface ROStats {
 export interface CreateIssuePayload {
   title: string;
   description: string;
-  type: IssueType;
+  category: IssueType;
   analysis_tag: AnalysisTag;
   classification: IssueClassification;
   interested_party?: string | null;

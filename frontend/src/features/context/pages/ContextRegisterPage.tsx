@@ -355,7 +355,7 @@ export default function ContextRegisterPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  {['Title', 'Type', 'Analysis Tag', 'Classification', 'Status', 'Identified'].map((col) => (
+                  {['Title', 'Category', 'Analysis Tag', 'Classification', 'Status', 'Identified'].map((col) => (
                     <th key={col} className="text-left px-4 py-3 text-[11px] font-medium text-slate-400 whitespace-nowrap bg-stone-50/60">
                       {col}
                     </th>
@@ -378,7 +378,9 @@ export default function ContextRegisterPage() {
                         <span className="font-medium text-slate-800">{issue.title}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-xs text-slate-500 capitalize">{issue.type}</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize ${issue.category === 'internal' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-violet-50 text-violet-700 border-violet-100'}`}>
+                          {issue.category}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <AnalysisTagChip value={issue.analysis_tag} />

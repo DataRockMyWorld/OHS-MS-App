@@ -93,7 +93,7 @@ class InterestedParty(models.Model):
 
 
 class ContextIssue(models.Model):
-    class IssueType(models.TextChoices):
+    class IssueCategory(models.TextChoices):
         INTERNAL = 'internal', 'Internal'
         EXTERNAL = 'external', 'External'
 
@@ -124,7 +124,7 @@ class ContextIssue(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='context_issues')
     title = models.CharField(max_length=255)
     description = models.TextField()
-    type = models.CharField(max_length=20, choices=IssueType.choices)
+    category = models.CharField(max_length=20, choices=IssueCategory.choices)
     analysis_tag = models.CharField(max_length=30, choices=AnalysisTag.choices, default=AnalysisTag.OTHER)
     classification = models.CharField(max_length=20, choices=Classification.choices)
     interested_party = models.ForeignKey(

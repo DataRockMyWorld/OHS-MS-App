@@ -75,12 +75,12 @@ class ContextIssueListView(generics.ListCreateAPIView):
     def get_queryset(self):
         qs = ContextIssue.objects.filter(organization=self.request.user.organization)
         classification = self.request.query_params.get('classification')
-        issue_type = self.request.query_params.get('type')
+        issue_category = self.request.query_params.get('category')
         issue_status = self.request.query_params.get('status')
         if classification:
             qs = qs.filter(classification=classification)
-        if issue_type:
-            qs = qs.filter(type=issue_type)
+        if issue_category:
+            qs = qs.filter(category=issue_category)
         if issue_status:
             qs = qs.filter(status=issue_status)
         return qs

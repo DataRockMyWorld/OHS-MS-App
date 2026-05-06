@@ -76,7 +76,7 @@ export default function IssueDetailPage() {
             <div className="flex items-center gap-2 flex-wrap mb-4">
               <ClassificationBadge value={issue.classification} />
               <StatusChip value={issue.status} />
-              <span className="text-xs text-slate-500 capitalize">{issue.type}</span>
+              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border capitalize ${issue.category === 'internal' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-violet-50 text-violet-700 border-violet-100'}`}>{issue.category}</span>
               <AnalysisTagChip value={issue.analysis_tag} />
             </div>
             {issue.description && (
