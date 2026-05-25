@@ -7,7 +7,6 @@ import {
   TrophyIcon,
 } from '@heroicons/react/24/outline';
 import Button from '@/components/ui/Button';
-import StatCard from '@/components/ui/StatCard';
 import EmptyState from '@/components/ui/EmptyState';
 import { SkeletonTableRow } from '@/components/ui/Skeleton';
 import { formatDate } from '@/lib/utils';
@@ -107,14 +106,25 @@ export default function ObjectiveListPage() {
       <div className="max-w-[1280px] mx-auto px-8 py-8">
 
         {/* Page header */}
-        <div className="flex items-start justify-between mb-8">
+        <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
               Objectives &amp; KPIs
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Track safety objectives and key performance indicators across your organization.
-            </p>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-200 text-slate-700">
+                {stats?.total ?? '—'} total
+              </span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                {stats?.on_track ?? '—'} on track
+              </span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(stats?.at_risk ?? 0) > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'}`}>
+                {stats?.at_risk ?? '—'} at risk
+              </span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(stats?.behind ?? 0) > 0 ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-500'}`}>
+                {stats?.behind ?? '—'} behind
+              </span>
+            </div>
           </div>
           {can.manageObjectives(user?.role ?? '') && (
             <Link to="/objectives/new">
@@ -123,14 +133,6 @@ export default function ObjectiveListPage() {
               </Button>
             </Link>
           )}
-        </div>
-
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Total" value={stats?.total} description="objectives" accent="default" />
-          <StatCard label="On Track" value={stats?.on_track} description="progressing well" accent="success" />
-          <StatCard label="At Risk" value={stats?.at_risk} description="need attention" accent="warning" />
-          <StatCard label="Behind" value={stats?.behind} description="off target" accent="danger" />
         </div>
 
         {/* Table card */}

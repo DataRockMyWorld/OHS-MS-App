@@ -131,38 +131,50 @@ interface KPICardProps {
 
 const KPI_VALUE_COLORS: Record<NonNullable<KPICardProps['color']>, string> = {
   default:  'text-slate-900',
-  red:      'text-red-600',
-  amber:    'text-amber-600',
-  emerald:  'text-emerald-600',
-  blue:     'text-blue-600',
-  violet:   'text-violet-600',
-  orange:   'text-orange-500',
+  red:      'text-red-700',
+  amber:    'text-amber-700',
+  emerald:  'text-emerald-700',
+  blue:     'text-blue-700',
+  violet:   'text-violet-700',
+  orange:   'text-orange-600',
 };
-const KPI_ICON_COLORS: Record<NonNullable<KPICardProps['color']>, string> = {
-  default:  'text-slate-300',
-  red:      'text-red-300',
-  amber:    'text-amber-300',
-  emerald:  'text-emerald-300',
-  blue:     'text-blue-300',
-  violet:   'text-violet-300',
-  orange:   'text-orange-300',
+const KPI_BG_COLORS: Record<NonNullable<KPICardProps['color']>, string> = {
+  default:  'bg-white border-stone-100',
+  red:      'bg-red-50 border-red-100',
+  amber:    'bg-amber-50 border-amber-100',
+  emerald:  'bg-emerald-50 border-emerald-100',
+  blue:     'bg-blue-50 border-blue-100',
+  violet:   'bg-violet-50 border-violet-100',
+  orange:   'bg-orange-50 border-orange-100',
+};
+const KPI_ICON_CONTAINER: Record<NonNullable<KPICardProps['color']>, string> = {
+  default:  'bg-slate-100 text-slate-500',
+  red:      'bg-red-100 text-red-500',
+  amber:    'bg-amber-100 text-amber-600',
+  emerald:  'bg-emerald-100 text-emerald-600',
+  blue:     'bg-blue-100 text-blue-500',
+  violet:   'bg-violet-100 text-violet-600',
+  orange:   'bg-orange-100 text-orange-500',
 };
 
 function KPICard({ label, value, sub, alert, color = 'default', href, icon: Icon }: KPICardProps) {
   const inner = (
     <div className={cn(
-      'bg-white rounded-2xl border border-stone-100 px-5 py-5 shadow-sm transition-all duration-150 group',
+      'rounded-2xl border px-5 py-5 shadow-sm transition-all duration-150 group',
+      KPI_BG_COLORS[color],
       href && 'hover:shadow-md hover:-translate-y-0.5 cursor-pointer',
     )}>
       <div className="flex items-start justify-between mb-4">
-        <p className="text-[11px] font-medium text-slate-400 leading-tight pr-2">{label}</p>
-        <Icon className={cn('w-4 h-4 shrink-0 mt-0.5', KPI_ICON_COLORS[color])} />
+        <p className="text-[11px] font-medium text-slate-500 leading-tight pr-2">{label}</p>
+        <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0', KPI_ICON_CONTAINER[color])}>
+          <Icon className="w-3.5 h-3.5" />
+        </div>
       </div>
       <p className={cn('text-3xl font-bold tracking-tight leading-none tabular-nums', KPI_VALUE_COLORS[color])}>
         {value}
       </p>
       {sub && (
-        <p className={cn('mt-2 text-[11px] leading-none', alert ? 'text-red-400 font-medium' : 'text-slate-400')}>
+        <p className={cn('mt-2 text-[11px] leading-none', alert ? 'text-red-500 font-medium' : 'text-slate-400')}>
           {sub}
         </p>
       )}

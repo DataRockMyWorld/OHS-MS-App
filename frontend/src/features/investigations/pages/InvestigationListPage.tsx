@@ -8,7 +8,6 @@ import {
   ClockIcon,
 } from '@heroicons/react/24/outline';
 import Button from '@/components/ui/Button';
-import StatCard from '@/components/ui/StatCard';
 import EmptyState from '@/components/ui/EmptyState';
 import { SkeletonTableRow } from '@/components/ui/Skeleton';
 import { formatDate } from '@/lib/utils';
@@ -102,12 +101,26 @@ export default function InvestigationListPage() {
       <div className="max-w-[1280px] mx-auto px-8 py-8">
 
         {/* ── Page header ──────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between mb-8">
+        <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Investigations</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Root cause analysis and corrective findings for safety incidents.
-            </p>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-200 text-slate-700">
+                {totalCount} total
+              </span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                {stats?.this_month ?? '—'} this month
+              </span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(stats?.open_count ?? 0) > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'}`}>
+                {stats?.open_count ?? '—'} open
+              </span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${(stats?.overdue_count ?? 0) > 0 ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-500'}`}>
+                {stats?.overdue_count ?? '—'} overdue
+              </span>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                {stats?.closed_count ?? '—'} closed
+              </span>
+            </div>
           </div>
           {can.manageInvestigations(user?.role ?? '') && (
             <Link to="/investigations/new">
@@ -116,34 +129,6 @@ export default function InvestigationListPage() {
               </Button>
             </Link>
           )}
-        </div>
-
-        {/* ── Stats row ─────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            label="This Month"
-            value={stats?.this_month}
-            description="investigations opened"
-            accent="default"
-          />
-          <StatCard
-            label="Open"
-            value={stats?.open_count}
-            description="actively managed"
-            accent="warning"
-          />
-          <StatCard
-            label="Overdue"
-            value={stats?.overdue_count}
-            description="past target date"
-            accent="danger"
-          />
-          <StatCard
-            label="Closed"
-            value={stats?.closed_count}
-            description="completed"
-            accent="success"
-          />
         </div>
 
         {/* ── Table card ───────────────────────────────────────────────────── */}
